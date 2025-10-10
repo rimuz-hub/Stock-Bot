@@ -178,20 +178,24 @@ async def reaction_role(ctx, role: discord.Role):
     bot.add_view(view)
 
 @bot.command(name="role")
-@commands.has_permissions(manage_roles=True)
 async def role(ctx, member: discord.Member, *, role_name: str):
-    """Toggle a role by name for a member."""
-    role = discord.utils.get(ctx.guild.roles, name=role_name)
+    """Add or remove a role from a member by role name (case-insensitive)."""
+    if not await check_perm(ctx, "manage_roles"):
+        return
+
+    # Find role case-insensitively
+    role = discord.utils.find(lambda r: r.name.lower() == role_name.lower(), ctx.guild.roles)
     if not role:
         await ctx.send(f"❌ Role '{role_name}' not found.")
         return
 
     if role in member.roles:
         await member.remove_roles(role)
-        await ctx.send(f"✅ Removed {role.name} from {member.mention}")
+        await ctx.send(f"✅ Removed role {role.name} from {member.mention}.")
     else:
         await member.add_roles(role)
-        await ctx.send(f"✅ Added {role.name} to {member.mention}")
+        await ctx.send(f"✅ Added role {role.name} to {member.mention}.")
+
 
 # ---------- Giveaways ----------
 class GiveawayModal(Modal):
