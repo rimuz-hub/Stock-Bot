@@ -249,7 +249,7 @@ async def giveaway(ctx):
 
 
 
-@bot.command(name="help")
+@bot.command(name="cmds")
 async def help_command(ctx):
     embed = discord.Embed(
         title="🤖 Bot Commands",
