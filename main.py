@@ -13,6 +13,8 @@ TOKEN = os.getenv("DISCORD_TOKEN")
 if TOKEN is None:
     raise ValueError("Bot token not found in .env")
 
+bot = commands.Bot(command_prefix=".", intents=intents)
+
 # ---------- Persistent storage ----------
 WELCOME_FILE = "welcome.json"
 REACTION_ROLES_FILE = "reaction_roles.json"
