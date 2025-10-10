@@ -177,6 +177,22 @@ async def reaction_role(ctx, role: discord.Role):
     await ctx.send(f"Click to toggle {role.name}", view=view)
     bot.add_view(view)
 
+@bot.command(name="role")
+@commands.has_permissions(manage_roles=True)
+async def role(ctx, member: discord.Member, *, role_name: str):
+    """Toggle a role by name for a member."""
+    role = discord.utils.get(ctx.guild.roles, name=role_name)
+    if not role:
+        await ctx.send(f"❌ Role '{role_name}' not found.")
+        return
+
+    if role in member.roles:
+        await member.remove_roles(role)
+        await ctx.send(f"✅ Removed {role.name} from {member.mention}")
+    else:
+        await member.add_roles(role)
+        await ctx.send(f"✅ Added {role.name} to {member.mention}")
+
 # ---------- Giveaways ----------
 class GiveawayModal(Modal):
     def __init__(self, view_obj, user_id):
@@ -254,16 +270,49 @@ async def giveaway(ctx):
     view.giveaway_msg = msg
     bot.add_view(view)
 
+@bot.command(name="greroll")
+@commands.has_permissions(administrator=True)
+async def greroll(ctx, message_id: int):
+    """Reroll a giveaway, choosing new winners"""
+    try:
+        msg = await ctx.channel.fetch_message(message_id)
+    except:
+        await ctx.send("❌ Could not find message with that ID.")
+        return
+
+    # Get 🎉 reaction
+    reaction = discord.utils.get(msg.reactions, emoji="🎉")
+    if not reaction:
+        await ctx.send("❌ No 🎉 reaction found on that message.")
+        return
+
+    users = [u async for u in reaction.users() if not u.bot]
+    if not users:
+        await ctx.send("❌ No participants found.")
+        return
+
+    # Try to get number of winners from embed footer
+    if msg.embeds and msg.embeds[0].footer.text:
+        footer_text = msg.embeds[0].footer.text
+        match = re.search(r"(\d+)\s*winner", footer_text)
+        num_winners = int(match.group(1)) if match else 1
+    else:
+        num_winners = 1
+
+    winners = random.sample(users, min(num_winners, len(users)))
+    await ctx.send(f"🎉 **New winner(s):** {', '.join([w.mention for w in winners])}!")
 
 
 @bot.command(name="cmds")
-async def help_command(ctx):
+async def cmds(ctx):
+    """Show a categorized list of all bot commands."""
     embed = discord.Embed(
         title="🤖 Bot Commands",
-        color=discord.Color.blurple(),
-        description="Here’s a list of all available commands:"
+        description=f"Prefix: `.`\nHere’s a list of all available commands:",
+        color=discord.Color.blurple()
     )
 
+    # Categories dictionary
     categories = {
         "Welcome System": [],
         "Moderation": [],
@@ -277,24 +326,26 @@ async def help_command(ctx):
             continue
         name = command.name
         desc = command.help if command.help else "No description."
-        
-        # Assign categories
+
+        # Assign to categories
         if name in ["setwelcomechannel", "setwelcomemsg", "setautorole"]:
             categories["Welcome System"].append(f"`.{name}` → {desc}")
-        elif name in ["kick", "ban", "purge", "to", "nick", "role_add"]:
+        elif name in ["kick", "ban", "purge", "to", "nick", "role"]:
             categories["Moderation"].append(f"`.{name}` → {desc}")
-        elif name in ["reaction_role"]:
+        elif name in ["reactionrole"]:
             categories["Reaction Roles"].append(f"`.{name}` → {desc}")
         elif name in ["giveaway"]:
             categories["Giveaways"].append(f"`.{name}` → {desc}")
         else:
             categories["Utility"].append(f"`.{name}` → {desc}")
 
+    # Add fields to embed
     for cat_name, cmds_list in categories.items():
         if cmds_list:
             embed.add_field(name=f"📌 {cat_name}", value="\n".join(cmds_list), inline=False)
 
-    await ctx.send(embed=embed, delete_after=60)
+    await ctx.send(embed=embed)
+
    
 
 # ---------- Ready Event ----------
