@@ -7,13 +7,18 @@ import os, json, asyncio, random, re
 from datetime import timedelta
 from dotenv import load_dotenv
 
-# Load token
+# Load token from .env
 load_dotenv()
 TOKEN = os.getenv("DISCORD_TOKEN")
 if TOKEN is None:
     raise ValueError("Bot token not found in .env")
 
-bot = commands.Bot(command_prefix=".", intents=intents)
+# ---------- Define intents ----------
+intents = discord.Intents.all()  # you can customize, e.g., intents.members = True
+
+# ---------- Create bot ----------
+PREFIX = "."  # Define your bot prefix here
+bot = commands.Bot(command_prefix=PREFIX, intents=intents)
 
 # ---------- Persistent storage ----------
 WELCOME_FILE = "welcome.json"
