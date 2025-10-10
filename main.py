@@ -179,17 +179,17 @@ async def reaction_role(ctx, role: discord.Role):
 
 @bot.command(name="role")
 async def role(ctx, member: discord.Member, *, role_name: str):
-    """Toggle a role by matching the end of the role name (emoji prefixes ignored)."""
+    """Toggle a role by searching for a case-insensitive substring in the role name."""
     if not await check_perm(ctx, "manage_roles"):
         return
 
     role_name_clean = role_name.strip().lower()
 
-    # Match role where name ends with the given string (case-insensitive)
-    role = discord.utils.find(lambda r: r.name.lower().endswith(role_name_clean), ctx.guild.roles)
+    # Match role where role_name_clean is in the role's name
+    role = discord.utils.find(lambda r: role_name_clean in r.name.lower(), ctx.guild.roles)
     
     if not role:
-        await ctx.send(f"❌ Role ending with '{role_name}' not found.")
+        await ctx.send(f"❌ Role containing '{role_name}' not found.")
         return
 
     if role in member.roles:
