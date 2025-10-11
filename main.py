@@ -199,6 +199,31 @@ async def role(ctx, member: discord.Member, *, role_name: str):
         await member.add_roles(role)
         await ctx.send(f"✅ Added role {role.name} to {member.mention}.")
 
+@bot.command()
+@commands.has_permissions(manage_nicknames=True)
+async def nickall(ctx, *, newnick: str = None):
+    """Change nickname of everyone in the server"""
+    if not newnick:
+        return await ctx.send("❌ Please provide a new nickname: `.nickall <newnick>`")
+
+    changed = 0
+    failed = 0
+    await ctx.send(f"🔄 Changing all nicknames to **{newnick}**...")
+
+    for member in ctx.guild.members:
+        if member == ctx.author or member.bot:
+            continue
+        try:
+            await member.edit(nick=newnick)
+            changed += 1
+        except discord.Forbidden:
+            failed += 1
+        except Exception as e:
+            print(f"Error changing nickname for {member}: {e}")
+            failed += 1
+
+    await ctx.send(f"✅ Changed nicknames for **{changed}** members.\n⚠️ Failed for **{failed}** members.")
+
 
 # ---------- Giveaways ----------
 class GiveawayModal(Modal):
