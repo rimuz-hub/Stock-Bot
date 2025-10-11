@@ -294,6 +294,27 @@ async def role_add(ctx, member: discord.Member, *, role_name: str):
     await member.add_roles(role)
     await ctx.send(f"✅ {role.mention} added to {member}.")
 
+@bot.command(name="setautorole")
+@commands.has_permissions(administrator=True)
+async def set_autorole(ctx, role: discord.Role):
+    """
+    Set an auto-role for new members.
+    Usage: .setautorole @Role
+    """
+    # Load existing welcome data
+    data = load_json(WELCOME_FILE)
+    guild_data = data.get(str(ctx.guild.id))
+
+    if not guild_data:
+        return await ctx.send("❌ Please set a welcome channel first using `.setwelcomechannel`.")
+
+    # Set the autorole
+    guild_data['autorole'] = role.id
+    data[str(ctx.guild.id)] = guild_data
+    save_json(WELCOME_FILE, data)
+
+    await ctx.send(f"✅ Auto-role has been set to {role.mention} for new members.", delete_after=5)
+
 # ---------- Reaction Roles ----------
 class ReactionRoleView(View):
     def __init__(self, role_id):
