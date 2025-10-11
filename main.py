@@ -85,7 +85,6 @@ async def auction(ctx, item: str = None, min_bid: float = None, member: discord.
 
     await ctx.send(embed=embed)
 
-bot.run("YOUR_TOKEN_HERE")
 
 # ---------- Welcome System with Auto-role ----------
 @bot.command(name="setwelcomechannel")
