@@ -114,13 +114,13 @@ async def auction(ctx, *, args: str = None):
         color=discord.Color.gold(),
         timestamp=datetime.utcnow()
     )
-    embed.set_footer(text=f"Auction started by {ctx.author}", icon_url=ctx.author.display_avatar.url)
+   
 
     # Build target text outside embed
     target_texts = []
     for obj in target_objs:
         if isinstance(obj, discord.Role):
-            target_texts.append(f"**Role:** {obj.mention}")
+            target_texts.append(f"{obj.mention}")
         else:
             target_texts.append(f"**User:** {obj.mention}")
 
@@ -182,13 +182,13 @@ async def stock(ctx, *, args: str = None):
         color=discord.Color.green(),
         timestamp=datetime.utcnow()
     )
-    embed.set_footer(text=f"Stock posted by {ctx.author}", icon_url=ctx.author.display_avatar.url)
+   
 
     # Build target text outside embed
     target_texts = []
     for obj in target_objs:
         if isinstance(obj, discord.Role):
-            target_texts.append(f"**Role:** {obj.mention}")
+            target_texts.append(f"{obj.mention}")
         else:
             target_texts.append(f"**User:** {obj.mention}")
 
@@ -516,7 +516,7 @@ async def unlock(ctx, channel: discord.TextChannel = None):
 
 @bot.command(name="cmds")
 async def cmds(ctx):
-    """Show a categorized list of all bot commands."""
+    """Show all bot commands, automatically categorized."""
     embed = discord.Embed(
         title="🤖 Bot Commands",
         description=f"Prefix: `.`\nHere’s a list of all available commands:",
@@ -524,7 +524,7 @@ async def cmds(ctx):
         timestamp=datetime.utcnow()
     )
 
-    # Categories dictionary
+    # Create a dictionary to categorize commands
     categories = {
         "Welcome System": [],
         "Moderation": [],
@@ -533,14 +533,14 @@ async def cmds(ctx):
         "Utility": []
     }
 
-    # Assign commands to categories
+    # Loop through all commands
     for command in bot.commands:
         if command.hidden:
             continue  # skip hidden commands
         name = command.name
         desc = command.help if command.help else "No description."
 
-        # Match categories based on your bot commands
+        # Assign to categories based on command name
         if name in ["setwelcomechannel", "setwelcomemsg", "setautorole"]:
             categories["Welcome System"].append(f"`.{name}` → {desc}")
         elif name in ["kick", "ban", "purge", "to", "nick", "role", "role_add", "nickall"]:
@@ -552,12 +552,13 @@ async def cmds(ctx):
         else:
             categories["Utility"].append(f"`.{name}` → {desc}")
 
-    # Add fields to embed
+    # Add fields to embed dynamically
     for cat_name, cmds_list in categories.items():
         if cmds_list:
             embed.add_field(name=f"📌 {cat_name}", value="\n".join(cmds_list), inline=False)
 
     await ctx.send(embed=embed)
+
 
    
 
