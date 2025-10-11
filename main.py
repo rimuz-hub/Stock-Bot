@@ -58,31 +58,52 @@ async def check_perm(ctx, perm_name, friendly_name=None):
         await ctx.send(f"❌ Missing **{friendly_name}** permission.")
         return False
     return True
-
 @bot.command(name="auction")
-async def auction(ctx, item: str = None, min_bid: str = None, target: str = None):
+async def auction(ctx, *, args: str = None):
     """
-    Start an auction.
-    Usage: .auction <item> <minimum_bid> <@user/@role>
+    Start an auction for one or multiple targets.
+    Usage: .auction <item> | <minimum_bid> | <@user/@role ...>
+    Example: .auction Nitro Account | 5$ | @Members @VIP @User123
     """
     await ctx.message.delete()
 
-    if not item or not min_bid or not target:
-        return await ctx.send("❌ Usage: `.auction <item> <minimum_bid> <@user/@role>`")
+    if not args:
+        return await ctx.send("❌ Usage: `.auction <item> | <minimum_bid> | <@user/@role ...>`")
 
-    # --- Determine target (user or role) ---
-    target_obj = None
-    if ctx.message.mentions:  # if user or role mentioned
-        target_obj = ctx.message.mentions[0]  # takes first mention
-    else:  # try to get role by name
-        role = discord.utils.get(ctx.guild.roles, name=target)
-        if role:
-            target_obj = role
+    # Split by separator "|"
+    parts = [p.strip() for p in args.split("|")]
+    if len(parts) != 3:
+        return await ctx.send("❌ Please use the format: `item | minimum_bid | @user/@role ...`")
 
-    if not target_obj:
-        return await ctx.send("❌ Could not find the target user or role.")
+    item, min_bid, target_str = parts
 
-    # --- Embed for the auction ---
+    # --- Detect targets (users or roles) ---
+    target_objs = []
+
+    # Add mentioned users
+    target_objs.extend(ctx.message.mentions)
+
+    # Add mentioned roles
+    target_objs.extend(ctx.message.role_mentions)
+
+    # If no mentions, try to find roles/users by name (comma-separated)
+    if not target_objs:
+        names = [n.strip() for n in re.split(r",|\s+", target_str)]
+        for name in names:
+            # Check role first
+            role = discord.utils.find(lambda r: r.name.lower() == name.lower(), ctx.guild.roles)
+            if role and role not in target_objs:
+                target_objs.append(role)
+            else:
+                # Check user by name
+                member = discord.utils.find(lambda m: m.name.lower() == name.lower(), ctx.guild.members)
+                if member and member not in target_objs:
+                    target_objs.append(member)
+
+    if not target_objs:
+        return await ctx.send("❌ Could not find any valid targets (users or roles).")
+
+    # --- Embed for auction ---
     embed = discord.Embed(
         title="🪙 Auction Started!",
         description=(
@@ -95,13 +116,83 @@ async def auction(ctx, item: str = None, min_bid: str = None, target: str = None
     )
     embed.set_footer(text=f"Auction started by {ctx.author}", icon_url=ctx.author.display_avatar.url)
 
-    # Send auction message with target outside embed
-    if isinstance(target_obj, discord.Role):
-        target_text = f"**Target Role:** {target_obj.mention}"
-    else:
-        target_text = f"**Target User:** {target_obj.mention}"
+    # Build target text outside embed
+    target_texts = []
+    for obj in target_objs:
+        if isinstance(obj, discord.Role):
+            target_texts.append(f"**Role:** {obj.mention}")
+        else:
+            target_texts.append(f"**User:** {obj.mention}")
 
-    await ctx.send(target_text, embed=embed)
+    await ctx.send("\n".join(target_texts), embed=embed)
+
+@bot.command(name="stock")
+async def stock(ctx, *, args: str = None):
+    """
+    Post a stock item for sale.
+    Usage: .stock <item> | <price> | <@user/@role ...>
+    Example: .stock Nitro Account | 5$ | @Members @VIP
+    """
+    await ctx.message.delete()
+
+    if not args:
+        return await ctx.send("❌ Usage: `.stock <item> | <price> | <@user/@role ...>`")
+
+    # Split by separator "|"
+    parts = [p.strip() for p in args.split("|")]
+    if len(parts) != 3:
+        return await ctx.send("❌ Please use the format: `item | price | @user/@role ...`")
+
+    item, price, target_str = parts
+
+    # --- Detect targets (users or roles) ---
+    target_objs = []
+
+    # Add mentioned users
+    target_objs.extend(ctx.message.mentions)
+
+    # Add mentioned roles
+    target_objs.extend(ctx.message.role_mentions)
+
+    # If no mentions, try to find roles/users by name (comma or space separated)
+    if not target_objs:
+        names = [n.strip() for n in re.split(r",|\s+", target_str)]
+        for name in names:
+            # Check role first
+            role = discord.utils.find(lambda r: r.name.lower() == name.lower(), ctx.guild.roles)
+            if role and role not in target_objs:
+                target_objs.append(role)
+            else:
+                # Check user by name
+                member = discord.utils.find(lambda m: m.name.lower() == name.lower(), ctx.guild.members)
+                if member and member not in target_objs:
+                    target_objs.append(member)
+
+    if not target_objs:
+        return await ctx.send("❌ Could not find any valid targets (users or roles).")
+
+    # --- Embed for stock ---
+    embed = discord.Embed(
+        title="📦 Stock Item Available!",
+        description=(
+            f"**Item:** {item}\n"
+            f"**Price:** {price}\n"
+            f"**Posted by:** {ctx.author.mention}"
+        ),
+        color=discord.Color.green(),
+        timestamp=datetime.utcnow()
+    )
+    embed.set_footer(text=f"Stock posted by {ctx.author}", icon_url=ctx.author.display_avatar.url)
+
+    # Build target text outside embed
+    target_texts = []
+    for obj in target_objs:
+        if isinstance(obj, discord.Role):
+            target_texts.append(f"**Role:** {obj.mention}")
+        else:
+            target_texts.append(f"**User:** {obj.mention}")
+
+    await ctx.send("\n".join(target_texts), embed=embed)
 
 
 
