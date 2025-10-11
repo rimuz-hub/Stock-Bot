@@ -294,7 +294,7 @@ async def role_add(ctx, member: discord.Member, *, role_name: str):
     await member.add_roles(role)
     await ctx.send(f"✅ {role.mention} added to {member}.")
 
-@bot.command(name="setautorole")
+@bot.command(name="autorole")
 @commands.has_permissions(administrator=True)
 async def set_autorole(ctx, role: discord.Role):
     """
