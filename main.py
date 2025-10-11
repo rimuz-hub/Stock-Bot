@@ -6,6 +6,7 @@ from discord import TextChannel, Role
 import os, json, asyncio, random, re
 from datetime import timedelta
 from dotenv import load_dotenv
+from datetime import datetime
 
 # Load token from .env
 load_dotenv()
@@ -335,13 +336,54 @@ async def greroll(ctx, message_id: int):
     await ctx.send(f"🎉 **New winner(s):** {', '.join([w.mention for w in winners])}!")
 
 
+@bot.command(name="lock")
+@commands.has_permissions(manage_channels=True)
+async def lock(ctx, channel: discord.TextChannel = None):
+    """Lock a channel (default: current one)."""
+    await ctx.message.delete()
+    channel = channel or ctx.channel
+
+    overwrite = channel.overwrites_for(ctx.guild.default_role)
+    overwrite.send_messages = False
+    await channel.set_permissions(ctx.guild.default_role, overwrite=overwrite)
+
+    embed = discord.Embed(
+        title="🔒 Channel Locked",
+        description=f"{channel.mention} has been locked.\nMembers can no longer send messages.",
+        color=discord.Color.red(),
+        timestamp=datetime.utcnow()
+    )
+    embed.set_footer(text=f"Locked by {ctx.author}", icon_url=ctx.author.display_avatar.url)
+    await ctx.send(embed=embed)
+
+@bot.command(name="unlock")
+@commands.has_permissions(manage_channels=True)
+async def unlock(ctx, channel: discord.TextChannel = None):
+    """Unlock a channel (default: current one)."""
+    await ctx.message.delete()
+    channel = channel or ctx.channel
+
+    overwrite = channel.overwrites_for(ctx.guild.default_role)
+    overwrite.send_messages = True
+    await channel.set_permissions(ctx.guild.default_role, overwrite=overwrite)
+
+    embed = discord.Embed(
+        title="🔓 Channel Unlocked",
+        description=f"{channel.mention} is now open.\nMembers can chat again!",
+        color=discord.Color.green(),
+        timestamp=datetime.utcnow()
+    )
+    embed.set_footer(text=f"Unlocked by {ctx.author}", icon_url=ctx.author.display_avatar.url)
+    await ctx.send(embed=embed)
+
 @bot.command(name="cmds")
 async def cmds(ctx):
     """Show a categorized list of all bot commands."""
     embed = discord.Embed(
         title="🤖 Bot Commands",
         description=f"Prefix: `.`\nHere’s a list of all available commands:",
-        color=discord.Color.blurple()
+        color=discord.Color.blurple(),
+        timestamp=datetime.utcnow()
     )
 
     # Categories dictionary
@@ -353,20 +395,21 @@ async def cmds(ctx):
         "Utility": []
     }
 
+    # Assign commands to categories
     for command in bot.commands:
         if command.hidden:
-            continue
+            continue  # skip hidden commands
         name = command.name
         desc = command.help if command.help else "No description."
 
-        # Assign to categories
+        # Match categories based on your bot commands
         if name in ["setwelcomechannel", "setwelcomemsg", "setautorole"]:
             categories["Welcome System"].append(f"`.{name}` → {desc}")
-        elif name in ["kick", "ban", "purge", "to", "nick", "role"]:
+        elif name in ["kick", "ban", "purge", "to", "nick", "role", "role_add", "nickall"]:
             categories["Moderation"].append(f"`.{name}` → {desc}")
         elif name in ["reactionrole"]:
             categories["Reaction Roles"].append(f"`.{name}` → {desc}")
-        elif name in ["giveaway"]:
+        elif name in ["giveaway", "greroll"]:
             categories["Giveaways"].append(f"`.{name}` → {desc}")
         else:
             categories["Utility"].append(f"`.{name}` → {desc}")
