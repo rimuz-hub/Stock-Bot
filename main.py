@@ -199,7 +199,7 @@ async def role(ctx, member: discord.Member, *, role_name: str):
         await member.add_roles(role)
         await ctx.send(f"✅ Added role {role.name} to {member.mention}.")
 
-@bot.command()
+@bot.command(name="nickall")
 @commands.has_permissions(manage_nicknames=True)
 async def nickall(ctx, *, newnick: str = None):
     """Change nickname of everyone in the server"""
