@@ -60,30 +60,49 @@ async def check_perm(ctx, perm_name, friendly_name=None):
     return True
 
 @bot.command(name="auction")
-async def auction(ctx, item: str = None, min_bid: float = None, member: discord.Member = None):
-    """Start an auction: .auction <item> <min_bid> <@user>"""
+async def auction(ctx, item: str = None, min_bid: str = None, target: str = None):
+    """
+    Start an auction.
+    Usage: .auction <item> <minimum_bid> <@user/@role>
+    """
     await ctx.message.delete()
 
-    # --- Validation ---
-    if not item or min_bid is None or member is None:
-        return await ctx.send("❌ Usage: `.auction <item> <minimum_bid> <@user>`")
+    if not item or not min_bid or not target:
+        return await ctx.send("❌ Usage: `.auction <item> <minimum_bid> <@user/@role>`")
 
-    # --- Embed Creation ---
+    # --- Determine target (user or role) ---
+    target_obj = None
+    if ctx.message.mentions:  # if user or role mentioned
+        target_obj = ctx.message.mentions[0]  # takes first mention
+    else:  # try to get role by name
+        role = discord.utils.get(ctx.guild.roles, name=target)
+        if role:
+            target_obj = role
+
+    if not target_obj:
+        return await ctx.send("❌ Could not find the target user or role.")
+
+    # --- Embed for the auction ---
     embed = discord.Embed(
         title="🪙 Auction Started!",
         description=(
             f"**Item:** {item}\n"
-            f"**Minimum Bid:** 💵 {min_bid}\n"
-            f"**Hosted by:** {ctx.author.mention}\n"
-            f"**Target:** {member.mention}"
+            f"**Minimum Bid:** {min_bid}\n"
+            f"**Hosted by:** {ctx.author.mention}"
         ),
         color=discord.Color.gold(),
         timestamp=datetime.utcnow()
     )
     embed.set_footer(text=f"Auction started by {ctx.author}", icon_url=ctx.author.display_avatar.url)
-    embed.set_thumbnail(url=member.display_avatar.url)
 
-    await ctx.send(embed=embed)
+    # Send auction message with target outside embed
+    if isinstance(target_obj, discord.Role):
+        target_text = f"**Target Role:** {target_obj.mention}"
+    else:
+        target_text = f"**Target User:** {target_obj.mention}"
+
+    await ctx.send(target_text, embed=embed)
+
 
 
 # ---------- Welcome System with Auto-role ----------
