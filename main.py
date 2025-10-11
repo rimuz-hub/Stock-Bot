@@ -31,6 +31,7 @@ for f in [WELCOME_FILE, REACTION_ROLES_FILE, GIVEAWAYS_FILE, CUSTOM_CMDS_FILE]:
         with open(f, "w") as file:
             json.dump({}, file)
 
+
 # ---------- Helper Functions ----------
 intents = discord.Intents.all()
 bot = commands.Bot(command_prefix=".", intents=intents)
@@ -57,6 +58,34 @@ async def check_perm(ctx, perm_name, friendly_name=None):
         await ctx.send(f"❌ Missing **{friendly_name}** permission.")
         return False
     return True
+
+@bot.command(name="auction")
+async def auction(ctx, item: str = None, min_bid: float = None, member: discord.Member = None):
+    """Start an auction: .auction <item> <min_bid> <@user>"""
+    await ctx.message.delete()
+
+    # --- Validation ---
+    if not item or min_bid is None or member is None:
+        return await ctx.send("❌ Usage: `.auction <item> <minimum_bid> <@user>`")
+
+    # --- Embed Creation ---
+    embed = discord.Embed(
+        title="🪙 Auction Started!",
+        description=(
+            f"**Item:** {item}\n"
+            f"**Minimum Bid:** 💵 {min_bid}\n"
+            f"**Hosted by:** {ctx.author.mention}\n"
+            f"**Target:** {member.mention}"
+        ),
+        color=discord.Color.gold(),
+        timestamp=datetime.utcnow()
+    )
+    embed.set_footer(text=f"Auction started by {ctx.author}", icon_url=ctx.author.display_avatar.url)
+    embed.set_thumbnail(url=member.display_avatar.url)
+
+    await ctx.send(embed=embed)
+
+bot.run("YOUR_TOKEN_HERE")
 
 # ---------- Welcome System with Auto-role ----------
 @bot.command(name="setwelcomechannel")
