@@ -315,9 +315,9 @@ async def set_autorole(ctx, role: discord.Role):
 
     await ctx.send(f"✅ Auto-role has been set to {role.mention} for new members.", delete_after=5)
 
+DATA_FILE="storages.jsons"
 
-DATA_FILE = "storages.json"
-
+_lock = asyncio.Lock()
 
 def _ensure_file():
     if not os.path.exists(DATA_FILE):
