@@ -315,7 +315,118 @@ async def set_autorole(ctx, role: discord.Role):
 
     await ctx.send(f"✅ Auto-role has been set to {role.mention} for new members.", delete_after=5)
 
-DATA_FILE="storages.json"
+
+DATA_FILE = "storages.json"
+
+
+def _ensure_file():
+    if not os.path.exists(DATA_FILE):
+        with open(DATA_FILE, "w", encoding="utf-8") as f:
+            json.dump({}, f, ensure_ascii=False, indent=2)
+
+async def load_data():
+    _ensure_file()
+    async with _lock:
+        with open(DATA_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+
+async def save_data(data):
+    _ensure_file()
+    async with _lock:
+        with open(DATA_FILE, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+
+
+# --- STORE COMMAND ---
+@bot.command(name="store")
+async def store(ctx, *, content: str = None):
+    if not content:
+        return await ctx.reply("❗ Usage: `.store <text>`", mention_author=False)
+    guild_id = str(ctx.guild.id) if ctx.guild else f"dm-{ctx.author.id}"
+    data = await load_data()
+
+    entry = {
+        "text": content.strip(),
+        "author": str(ctx.author),
+        "timestamp": datetime.utcnow().isoformat() + "Z"
+    }
+    data.setdefault(guild_id, []).append(entry)
+
+    if len(data[guild_id]) > 500:
+        data[guild_id] = data[guild_id][-500:]
+    await save_data(data)
+    await ctx.reply("✅ Stored successfully!", mention_author=False)
+
+# --- DISPLAY STORAGE ---
+@bot.command(name="storage")
+async def storssge(ctx, amount: int = 10):
+    guild_id = str(ctx.guild.id) if ctx.guild else f"dm-{ctx.author.id}"
+    data = await load_data()
+    items = data.get(guild_id, [])
+
+    if not items:
+        return await ctx.reply("ℹ️ No stored info found.", mention_author=False)
+
+    to_show = items[-amount:]
+    to_show.reverse()
+
+    lines = []
+    for i, e in enumerate(to_show, start=1):
+        t = e["timestamp"][:19].replace("T", " ")
+        lines.append(f"**{i}.** `{t}` • *{e['author']}* — {e['text'][:150]}")
+
+    embed = discord.Embed(
+        title=f"🗂️ Stored items (last {len(to_show)})",
+        description="\n".join(lines),
+        color=0x2F3136
+    )
+    await ctx.reply(embed=embed, mention_author=False)
+
+# --- UNSTORE COMMAND ---
+@bot.command(name="unstore")
+async def unstore(ctx, *, arg: str = None):
+    """
+    .unstore <index> — removes a stored item
+    .unstore all — clears all (admin only)
+    """
+    if not arg:
+        return await ctx.reply("❗ Usage: `.unstore <index>` or `.unstore all`", mention_author=False)
+
+    guild_id = str(ctx.guild.id) if ctx.guild else f"dm-{ctx.author.id}"
+    data = await load_data()
+
+    if guild_id not in data or not data[guild_id]:
+        return await ctx.reply("ℹ️ No stored info found.", mention_author=False)
+
+    if arg.lower() == "all":
+        # only admins can clear all
+        if not ctx.author.guild_permissions.administrator:
+            return await ctx.reply("🚫 Only admins can use `.unstore all`.", mention_author=False)
+        del data[guild_id]
+        await save_data(data)
+        return await ctx.reply("🧹 Cleared all stored info for this server.", mention_author=False)
+
+    # try to parse index
+    try:
+        index = int(arg)
+    except ValueError:
+        return await ctx.reply("⚠️ Please provide a valid number or `all`.", mention_author=False)
+
+    items = data[guild_id]
+    if index < 1 or index > len(items):
+        return await ctx.reply(f"❌ Invalid index. Use `.storssge` to see item numbers.", mention_author=False)
+
+    # items are stored oldest→newest, but `.storssge` shows reversed.
+    # so if user says `.unstore 1`, they mean the newest one.
+    real_index = -(index)
+    removed = items.pop(real_index)
+    await save_data(data)
+
+    await ctx.reply(
+        f"🗑️ Removed item #{index}: `{removed['text'][:80]}...`",
+        mention_author=False
+    )
+
 # ---------- Reaction Roles ----------
 class ReactionRoleView(View):
     def __init__(self, role_id):
