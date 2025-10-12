@@ -349,57 +349,9 @@ async def remove_timeout(ctx, member: discord.Member):
     except Exception as e:
         await ctx.send(f"❌ Could not remove timeout: {e}")
 
-NICK_BACKUP_FILE = "nick_backup.json"
 
-def ensure_backup_file():
-    if not os.path.exists(NICK_BACKUP_FILE):
-        with open(NICK_BACKUP_FILE, "w", encoding="utf-8") as f:
-            json.dump({}, f, indent=2)
 
-async def load_backup():
-    ensure_backup_file()
-    with open(NICK_BACKUP_FILE, "r", encoding="utf-8") as f:
-        return json.load(f)
 
-async def save_backup(data):
-    ensure_backup_file()
-    with open(NICK_BACKUP_FILE, "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=2)
-
-@bot.command(name="revertnickall")
-@commands.has_permissions(manage_nicknames=True)
-async def revertnickall(ctx):
-    """Reverts everyone's nickname to what they were before .nickall."""
-    backup = await load_backup()
-    guild_id = str(ctx.guild.id)
-
-    if guild_id not in backup or not backup[guild_id]:
-        return await ctx.reply("⚠️ No nickname backup found. Run `.nickall` before using this.", mention_author=False)
-
-    old_data = backup[guild_id]
-    changed = 0
-    failed = 0
-
-    await ctx.send("🔁 Reverting all nicknames to previous ones...")
-
-    for member in ctx.guild.members:
-        if member.bot:
-            continue
-        old_nick = old_data.get(str(member.id), None)
-        try:
-            await member.edit(nick=old_nick)
-            changed += 1
-        except discord.Forbidden:
-            failed += 1
-        except Exception as e:
-            print(f"Error reverting nickname for {member}: {e}")
-            failed += 1
-
-    # clear the backup for this guild
-    backup[guild_id] = {}
-    await save_backup(backup)
-
-    await ctx.send(f"✅ Reverted nicknames for **{changed}** members.\n⚠️ Failed for **{failed}**.")
 # --- STORE COMMAND ---
 @bot.command(name="store")
 async def store(ctx, *, content: str = None):
@@ -534,22 +486,52 @@ async def role(ctx, member: discord.Member, *, role_name: str):
         await member.add_roles(role)
         await ctx.send(f"✅ Added role {role.name} to {member.mention}.")
 
+import json
+import os
+import asyncio
+
+NICK_BACKUP_FILE = "nick_backup.json"
+
+def ensure_backup_file():
+    if not os.path.exists(NICK_BACKUP_FILE):
+        with open(NICK_BACKUP_FILE, "w", encoding="utf-8") as f:
+            json.dump({}, f, indent=2)
+
+async def load_backup():
+    ensure_backup_file()
+    with open(NICK_BACKUP_FILE, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+async def save_backup(data):
+    ensure_backup_file()
+    with open(NICK_BACKUP_FILE, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2)
+
+# --- NICKALL COMMAND ---
 @bot.command(name="nickall")
 @commands.has_permissions(manage_nicknames=True)
-async def nickall(ctx, *, newnick: str = None):
-    """Change nickname of everyone in the server"""
-    if not newnick:
-        return await ctx.send("❌ Please provide a new nickname: `.nickall <newnick>`")
+async def nickall(ctx, *, nickname: str = None):
+    """Sets a nickname for everyone and stores old nicknames for later restore."""
+    if not nickname:
+        return await ctx.reply("❗ Usage: `.nickall <new nickname>`", mention_author=False)
 
+    backup = await load_backup()
+    guild_id = str(ctx.guild.id)
+    backup[guild_id] = {}
+
+    members = ctx.guild.members
     changed = 0
     failed = 0
-    await ctx.send(f"🔄 Changing all nicknames to **{newnick}**...")
 
-    for member in ctx.guild.members:
-        if member == ctx.author or member.bot:
+    await ctx.send(f"🔄 Changing nicknames for {len(members)} members...")
+
+    for member in members:
+        if member.bot:
             continue
         try:
-            await member.edit(nick=newnick)
+            # save old nickname (even if None)
+            backup[guild_id][str(member.id)] = member.nick
+            await member.edit(nick=nickname)
             changed += 1
         except discord.Forbidden:
             failed += 1
@@ -557,8 +539,44 @@ async def nickall(ctx, *, newnick: str = None):
             print(f"Error changing nickname for {member}: {e}")
             failed += 1
 
-    await ctx.send(f"✅ Changed nicknames for **{changed}** members.\n⚠️ Failed for **{failed}** members.")
+    await save_backup(backup)
+    await ctx.send(f"✅ Changed nicknames for {changed} members.\n⚠️ Failed for {failed}.")
 
+# --- REVERTNICKALL COMMAND ---
+@bot.command(name="revertnickall")
+@commands.has_permissions(manage_nicknames=True)
+async def revertnickall(ctx):
+    """Reverts everyone's nickname back to what they were before .nickall."""
+    backup = await load_backup()
+    guild_id = str(ctx.guild.id)
+
+    if guild_id not in backup or not backup[guild_id]:
+        return await ctx.reply("⚠️ No nickname backup found. You must run `.nickall` first.", mention_author=False)
+
+    data = backup[guild_id]
+    changed = 0
+    failed = 0
+
+    await ctx.send("🔁 Restoring all nicknames to previous values...")
+
+    for member in ctx.guild.members:
+        if member.bot:
+            continue
+        old_nick = data.get(str(member.id), None)
+        try:
+            await member.edit(nick=old_nick)
+            changed += 1
+        except discord.Forbidden:
+            failed += 1
+        except Exception as e:
+            print(f"Error reverting nickname for {member}: {e}")
+            failed += 1
+
+    # delete backup after restoring
+    backup[guild_id] = {}
+    await save_backup(backup)
+
+    await ctx.send(f"✅ Restored **{changed}** nicknames.\n⚠️ Failed for **{failed}** members.")
 
 # ---------- Giveaways ----------
 class GiveawayModal(Modal):
