@@ -315,6 +315,7 @@ async def set_autorole(ctx, role: discord.Role):
 
     await ctx.send(f"✅ Auto-role has been set to {role.mention} for new members.", delete_after=5)
 
+DATA_FILE="storages.json"
 # ---------- Reaction Roles ----------
 class ReactionRoleView(View):
     def __init__(self, role_id):
