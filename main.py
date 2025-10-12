@@ -336,7 +336,70 @@ async def save_data(data):
         with open(DATA_FILE, "w", encoding="utf-8") as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
 
+# --- REMOVE TIMEOUT COMMAND ---
+@bot.command(name="rto")
+async def remove_timeout(ctx, member: discord.Member):
+    """Remove timeout from a member."""
+    if not await check_perm(ctx, "moderate_members"):
+        return
 
+    try:
+        await member.timeout(None)
+        await ctx.send(f"✅ Timeout removed from {member.mention}.")
+    except Exception as e:
+        await ctx.send(f"❌ Could not remove timeout: {e}")
+
+NICK_BACKUP_FILE = "nick_backup.json"
+
+def ensure_backup_file():
+    if not os.path.exists(NICK_BACKUP_FILE):
+        with open(NICK_BACKUP_FILE, "w", encoding="utf-8") as f:
+            json.dump({}, f, indent=2)
+
+async def load_backup():
+    ensure_backup_file()
+    with open(NICK_BACKUP_FILE, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+async def save_backup(data):
+    ensure_backup_file()
+    with open(NICK_BACKUP_FILE, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2)
+
+@bot.command(name="revertnickall")
+@commands.has_permissions(manage_nicknames=True)
+async def revertnickall(ctx):
+    """Reverts everyone's nickname to what they were before .nickall."""
+    backup = await load_backup()
+    guild_id = str(ctx.guild.id)
+
+    if guild_id not in backup or not backup[guild_id]:
+        return await ctx.reply("⚠️ No nickname backup found. Run `.nickall` before using this.", mention_author=False)
+
+    old_data = backup[guild_id]
+    changed = 0
+    failed = 0
+
+    await ctx.send("🔁 Reverting all nicknames to previous ones...")
+
+    for member in ctx.guild.members:
+        if member.bot:
+            continue
+        old_nick = old_data.get(str(member.id), None)
+        try:
+            await member.edit(nick=old_nick)
+            changed += 1
+        except discord.Forbidden:
+            failed += 1
+        except Exception as e:
+            print(f"Error reverting nickname for {member}: {e}")
+            failed += 1
+
+    # clear the backup for this guild
+    backup[guild_id] = {}
+    await save_backup(backup)
+
+    await ctx.send(f"✅ Reverted nicknames for **{changed}** members.\n⚠️ Failed for **{failed}**.")
 # --- STORE COMMAND ---
 @bot.command(name="store")
 async def store(ctx, *, content: str = None):
